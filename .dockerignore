@@ -1,0 +1,10 @@
+.git
+**/target
+**/node_modules
+/build
+/mitamae
+/packer
+/docs
+/bench/fixtures/initial.zip
+/bench/fixtures/images
+*.md

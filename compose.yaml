@@ -1,8 +1,16 @@
-# ローカル開発ループ用の MySQL。webapp/bench は host 上で `cargo run` する想定。
-# 詳細: docs/authoring/dev-loop.md
+# Docker Compose for nrb2026 ローカル負荷テスト
 #
-# 認証は production AMI と揃えて mysql_native_password を強制する
-# (docs/authoring/platform.md § 2)。
+# 使い方:
+#   1. ベンチマーク用 fixture 画像を事前に取得しておく:
+#        scripts/fetch-bench-fixtures.sh
+#   2. 全サービス起動:
+#        docker compose up -d mysql webapp
+#   3. bench を 1 回実行:
+#        docker compose run --rm bench
+#   4. 後片付け:
+#        docker compose down -v
+#
+# 詳細: docs/authoring/dev-loop.md
 
 services:
   mysql:
@@ -10,9 +18,8 @@ services:
     command:
       - --default-authentication-plugin=mysql_native_password
     ports:
-      # 3307 にずらすのは、ホストに直接 mysqld が居る環境向けの退避。production AMI 側
-      # (mitamae/cookbooks/mysql) は 3306 のまま。dev で webapp を動かす時は
-      # DATABASE_URL を 3307 に向ける (docs/authoring/dev-loop.md)。
+      # ホスト側に mysqld がいる環境でも衝突しないよう 3307 にずらす。
+      # Docker ネットワーク内では 3306 のままアクセス可。
       - "127.0.0.1:3307:3306"
     environment:
       MYSQL_ROOT_PASSWORD: root
@@ -26,6 +33,62 @@ services:
       interval: 2s
       timeout: 2s
       retries: 30
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+
+
+  webapp:
+    build:
+      context: .
+      dockerfile: webapp/Dockerfile
+    ports:
+      - "127.0.0.1:8080:80"
+    environment:
+      DATABASE_URL: mysql://isucon:isucon@mysql:3306/nrb2026
+      SQL_DIR: /home/isucon/webapp/sql
+      STATIC_DIR: /home/isucon/webapp/public
+    depends_on:
+      mysql:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://127.0.0.1:80/healthz"]
+      interval: 2s
+      timeout: 2s
+      retries: 30
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+
+  bench:
+    build:
+      context: .
+      dockerfile: bench/Dockerfile
+    ports:
+      - "127.0.0.1:9999:9999"
+    environment:
+      REPORT_FD: 1
+      WEBAPP_BASE_URL: http://webapp:80
+      WEBHOOK_URL: http://bench:9999/webhook
+      BENCH_FIXTURES_DIR: /fixtures
+      # 負荷走行パラメータ (bench.sh の production 設定に準拠)
+      BENCH_AUDITED_NEW_ACTORS_MAX: 1000
+      BENCH_AUDITED_ACTIVE_ACTORS_MAX: 1000
+      BENCH_NOTIFICATION_ACTORS_MAX: 1000
+      BENCH_INITIAL_ACTORS_PER_KIND: 3
+      BENCH_RAMP_STEP_JOINS: 3
+      # dev 高速試行用に fixture 読み込み件数を制限 (全件使う場合はコメントアウト)
+      # BENCH_FIXTURES_LIMIT: 100
+    volumes:
+      - ./bench/fixtures/images:/fixtures:ro
+    depends_on:
+      webapp:
+        condition: service_healthy
 
 volumes:
   mysql_data:
