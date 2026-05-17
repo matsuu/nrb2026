@@ -4,10 +4,17 @@ ISUNARABE 合同演習2026を対象としてGitHub Actions で継続的にベン
 
 ## クイックスタート
 
-1. プログラムを変更する
-2. git commit する
-3. git push する
-4. GitHub Actions でベンチマークが自動実行される
+1. `gh repo fork matsuu/nrb2026 --clone`
+2. KAIZEN
+3. git commit
+4. git push
+5. GitHub Actions ベンチマーク結果を確認
+6. 2-5 を繰り返す
+
+## 注意事項
+
+* スコアのランキング機能はありません
+* ISUNARABE 合同演習2026 と環境スペックが異なるため、ベンチマークスコアはあくまで参考値として扱ってください
 
 ## GitHub Actions
 
