@@ -33,7 +33,7 @@ jobs:
           context: .
           file: webapp/Dockerfile
           load: true
-          tags: ${{ env.COMPOSE_PROJECT_NAME }}_webapp:latest
+          tags: ${{ env.COMPOSE_PROJECT_NAME }}-webapp:latest
           cache-from: type=gha,scope=webapp
           cache-to: type=gha,scope=webapp,mode=max
 
@@ -43,7 +43,7 @@ jobs:
           context: .
           file: bench/Dockerfile
           load: true
-          tags: ${{ env.COMPOSE_PROJECT_NAME }}_bench:latest
+          tags: ${{ env.COMPOSE_PROJECT_NAME }}-bench:latest
           cache-from: type=gha,scope=bench
           cache-to: type=gha,scope=bench,mode=max
 
