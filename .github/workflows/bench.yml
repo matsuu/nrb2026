@@ -49,5 +49,4 @@ jobs:
 
       - name: Show result
         run: |
-          echo "=== RESULT ==="
           cat /tmp/bench-stdout.txt | jq .
