@@ -1,0 +1,53 @@
+name: bench
+
+on:
+  push:
+  workflow_dispatch:
+
+env:
+  COMPOSE_FILE: compose.yaml
+
+jobs:
+  bench:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache fixtures
+        id: cache-fixtures
+        uses: actions/cache@v4
+        with:
+          path: bench/fixtures/images
+          key: bench-fixtures-v1-${{ hashFiles('scripts/fetch-bench-fixtures.sh') }}
+
+      - name: Download fixtures
+        if: steps.cache-fixtures.outputs.cache-hit != 'true'
+        run: scripts/fetch-bench-fixtures.sh
+
+      - name: Build images
+        run: docker compose build
+
+      - name: Start services
+        run: docker compose up -d mysql webapp
+
+      - name: Wait for webapp
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fs http://localhost:8080/healthz >/dev/null 2>&1; then
+              echo "webapp ready"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "webapp not ready within timeout" >&2
+          exit 1
+
+      - name: Run bench
+        continue-on-error: true
+        run: |
+          docker compose run --rm -T bench | tee /tmp/bench-stdout.txt
+
+      - name: Show result
+        run: |
+          echo "=== RESULT ==="
+          cat /tmp/bench-stdout.txt | jq .
